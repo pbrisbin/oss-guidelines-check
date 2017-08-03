@@ -1,35 +1,30 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 module Main where
 
+import OG.Check
 import OG.Checks
 
-import Control.Monad (forM_)
 import Data.Monoid ((<>))
 import Data.Text (Text)
+import System.Terminal.Colors
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 main :: IO ()
-main = forM_ checks $ \check -> do
-    result <- checkResult check
-    T.putStr $ formatCheckResult "" (checkDetails check, result)
+main = mapM_ (T.putStr . formatOutcome "") =<< checks
 
-formatCheckResult :: Text -> (CheckDetails, CheckResult a) -> Text
-formatCheckResult indent (cd, Success _) = indent <> simple cd "OK"
-formatCheckResult indent (cd, Skipped) = indent <> simple cd "Skipped"
-formatCheckResult indent (cd, Failure msg) =
-    indent <> simple cd "Failure" <>
-    indent <> "  " <> T.pack msg <> "\n"
-formatCheckResult indent (cd, Error err) =
-    indent <> simple cd "Error" <>
-    indent <> "  " <> T.pack err <> "\n"
-formatCheckResult indent (_, (Multi (check:checks))) =
-    formatCheckResult indent check <>
-    mconcat (map (formatCheckResult (indent <> "  ")) checks)
+formatOutcome :: Text -> CheckOutcome a -> Text
+formatOutcome indent CheckOutcome{..} =
+    checkLabel coDetail <>
+    formatResult indent coResult <>
+    mconcat (map (formatOutcome (indent <> "  ")) coDependents)
 
--- Should be impossible
-formatCheckResult indent (_, (Multi [])) = ""
-
-simple :: CheckDetails -> Text -> Text
-simple (CheckDetails n) label = T.pack n <> ": " <> label <> "\n"
+formatResult :: Text -> CheckResult a -> Text
+formatResult _ (Success _) = ": " <> color Red "OK" <> "\n"
+formatResult indent Skipped = ": " <> color Yellow "Skipped" <> "\n"
+formatResult indent (Failure msg) = ": " <> color Red "Failure" <> "\n"
+    <> indent <> "  " <> msg <> "\n"
+formatResult indent (Error err) = ": " <> color Red "ERROR" <> "\n"
+    <> indent <> "  " <> err <> "\n"

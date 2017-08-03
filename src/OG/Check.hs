@@ -1,47 +1,41 @@
-{-# LANGUAGE RecordWildCards #-}
-module OG.Check
-    ( CheckDetails(..)
-    , CheckOutcome(..)
-    , CheckResult(..)
-    , Check(..)
-    , runCheck
-    , skipCheck
-    ) where
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+module OG.Check where
 
 import Data.Text (Text)
+import Data.String (IsString)
 
-import qualified Control.Exception.Safe as E
-import qualified Data.Text as T
+-- | Static details about a check, for now just a name
+newtype CheckDetail = CheckDetail Text
+    deriving IsString
 
-data CheckDetails = CheckDetails
-    { cdName :: Text
-    , cdDescription :: Text
-    }
+checkLabel :: CheckDetail -> Text
+checkLabel (CheckDetail x) = x
 
-data CheckOutcome
-    = Success
-    | Failure
+data CheckResult a
+    = Success a
+    | Failure Text
     | Error Text
-    | Skipped Text
+    | Skipped
 
-data Check m = Check
-    { checkDetails :: CheckDetails
-    , checkOutcome :: m CheckOutcome
+instance Functor CheckResult where
+    fmap f (Success x) = Success $ f x
+    fmap _ (Failure msg) = Failure msg
+    fmap _ (Error err) = Failure err
+    fmap _ Skipped = Skipped
+
+data Check m a b = Check
+    { checkDetail :: CheckDetail
+    , checkResult :: a -> m (CheckResult b)
     }
 
-data CheckResult = CheckResult
-    { crDetails :: CheckDetails
-    , crOutcome :: CheckOutcome
+data CheckOutcome a = CheckOutcome
+    { coDetail :: CheckDetail
+    , coResult :: CheckResult a
+    , coDependents :: [CheckOutcome a]
     }
 
-runCheck :: E.MonadCatch m => Check m -> m CheckResult
-runCheck Check{..} = CheckResult checkDetails <$> do
-    outcome <- E.tryIO checkOutcome
-
-    return $ either (Error . T.pack . show) id outcome
-
-skipCheck :: Monad m => Text -> Check m -> m CheckResult
-skipCheck reason check = return $ CheckResult
-    { crDetails = checkDetails check
-    , crOutcome = Skipped reason
-    }
+instance Functor CheckOutcome where
+    fmap f c = c
+        { coResult = f <$> coResult c
+        , coDependents = map (f <$>) $ coDependents c
+        }

@@ -1,3 +1,7 @@
-# oss-guidelines-check
+# OSS Guidelines Check
 
-add description of oss-guidelines-check here
+Automated checks for my OSS Guidelines.
+
+https://github.com/pbrisbin/oss-guidelines
+
+**Heavily Work-in-Progress**

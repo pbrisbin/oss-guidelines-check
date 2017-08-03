@@ -17,7 +17,10 @@ library
   hs-source-dirs:      src
   ghc-options:         -Wall
   exposed-modules:     OG.Check
+                       OG.Check.DSL
                        OG.Checks
+                       OG.Checks.Support
+                       System.Terminal.Colors
   build-depends:       base >= 4.7 && < 5
                      , Glob
                      , directory
